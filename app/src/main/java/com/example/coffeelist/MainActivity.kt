@@ -9,8 +9,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,7 +45,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CoffeeListScreen(viewModel: CoffeeViewModel = viewModel()) {
     val items by viewModel.allItems.collectAsState(initial = emptyList())
+    val cartCount = items.filter { it.isInCart }.sumOf { it.quantity }
     var showDialog by remember { mutableStateOf(false) }
+    var showCartDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<CoffeeItem?>(null) }
 
     Scaffold(
@@ -52,7 +58,25 @@ fun CoffeeListScreen(viewModel: CoffeeViewModel = viewModel()) {
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = HeaderBrown,
                     titleContentColor = Color.White,
-                )
+                ),
+                actions = {
+                    IconButton(onClick = { showCartDialog = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (cartCount > 0) {
+                                    Badge { Text(cartCount.toString()) }
+                                }
+                            },
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ShoppingCart,
+                                contentDescription = "Shopping Cart",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -85,12 +109,21 @@ fun CoffeeListScreen(viewModel: CoffeeViewModel = viewModel()) {
                                 itemToEdit = item
                                 showDialog = true
                             },
-                            onDelete = { viewModel.deleteItem(item) }
+                            onDelete = { viewModel.deleteItem(item) },
+                            onAddToCart = { viewModel.addItemToCart(item) }
                         )
                     }
                 }
             }
         }
+    }
+
+    if (showCartDialog) {
+        CartDialog(
+            items = items.filter { it.isInCart },
+            onDismiss = { showCartDialog = false },
+            onUpdateQuantity = { item, quantity -> viewModel.updateQuantity(item, quantity) }
+        )
     }
 
     if (showDialog) {
@@ -110,10 +143,69 @@ fun CoffeeListScreen(viewModel: CoffeeViewModel = viewModel()) {
 }
 
 @Composable
+fun CartDialog(
+    items: List<CoffeeItem>,
+    onDismiss: () -> Unit,
+    onUpdateQuantity: (CoffeeItem, Int) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Shopping Cart", color = DarkCoffeeText) },
+        text = {
+            if (items.isEmpty()) {
+                Text("Your cart is empty.", color = DarkCoffeeText)
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    items(items) { item ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = CardBeige,
+                                contentColor = DarkCoffeeText
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(8.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = item.name, style = MaterialTheme.typography.titleSmall)
+                                    Text(text = "${item.price} ft", style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { onUpdateQuantity(item, item.quantity - 1) }) {
+                                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Decrease")
+                                }
+                                Text(text = item.quantity.toString())
+                                IconButton(onClick = { onUpdateQuantity(item, item.quantity + 1) }) {
+                                    Icon(Icons.Default.AddCircleOutline, contentDescription = "Increase")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = HeaderBrown)
+            ) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
 fun CoffeeItemRow(
     item: CoffeeItem,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onAddToCart: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -141,6 +233,13 @@ fun CoffeeItemRow(
                     text = "${item.type} - ${item.price} ft",
                     style = MaterialTheme.typography.bodyMedium,
                     color = DarkCoffeeText.copy(alpha = 0.8f)
+                )
+            }
+            IconButton(onClick = onAddToCart) {
+                Icon(
+                    imageVector = Icons.Default.AddShoppingCart,
+                    contentDescription = "Add to Cart",
+                    tint = DarkCoffeeText
                 )
             }
             IconButton(onClick = onEdit) {

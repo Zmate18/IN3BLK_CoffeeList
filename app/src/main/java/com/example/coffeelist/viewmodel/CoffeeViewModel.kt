@@ -29,4 +29,20 @@ class CoffeeViewModel(application: Application) : AndroidViewModel(application) 
             coffeeDao.deleteItem(item)
         }
     }
+
+    fun addItemToCart(item: CoffeeItem) {
+        viewModelScope.launch {
+            coffeeDao.updateItem(item.copy(isInCart = true, quantity = item.quantity + 1))
+        }
+    }
+
+    fun updateQuantity(item: CoffeeItem, newQuantity: Int) {
+        viewModelScope.launch {
+            if (newQuantity <= 0) {
+                coffeeDao.updateItem(item.copy(isInCart = false, quantity = 0))
+            } else {
+                coffeeDao.updateItem(item.copy(quantity = newQuantity))
+            }
+        }
+    }
 }

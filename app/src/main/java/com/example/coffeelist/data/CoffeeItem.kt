@@ -9,5 +9,7 @@ data class CoffeeItem(
     val id: Int = 0,
     val name: String,
     val type: String,
-    val price: Double
+    val price: Double,
+    val isInCart: Boolean = false,
+    val quantity: Int = 0
 )
